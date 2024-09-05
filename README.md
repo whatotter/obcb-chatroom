@@ -3,6 +3,8 @@ chat like it's the 2000s again using our shitty bit-banging-galore chatroom!!
 
 ![image](https://github.com/user-attachments/assets/adcff8d2-adea-4f81-a685-3bf8d6372e5e)
 
+# credits
+thank you to edna 4 (emma.5829) for providing me with the base library, this would not have been made without them
 
 # usage
 ### install packages first:  
