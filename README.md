@@ -6,7 +6,7 @@ chat like it's the 2000s again using our shitty bit-banging-galore chatroom!!
 
 # usage
 ### install packages first:  
-`pip install websockets-client`
+`pip install websocket-client`
 
 ### using the actual commmand
 `python3 chatroom.py (room) (username)`  
