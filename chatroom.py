@@ -1,69 +1,36 @@
-import obcb_comms
-import threading
-import json
-import argparse
-import hashlib
+import os, obcb_comms, threading, json, argparse, hashlib
 
 parser = argparse.ArgumentParser()
 parser.add_argument("room", help="page* to communicate on")
 parser.add_argument("user", help="username to use")
+parser.add_argument("-p", "--prepend", help="text to prepend to message (supports ANSI!)", default="")
 args = parser.parse_args()
 
 sock = obcb_comms.socket(int(args.room))
-previousMsg = None
+termHeight = os.get_terminal_size().lines - 2
+msgBuffer = ["" for _ in range(termHeight)]
 die = False
-inBuf = ""
-
-# input fucking sucks, we're using getch
-class _Getch:
-    """Gets a single character from standard input.  Does not echo to the screen."""
-    def __init__(self):
-        try:
-            self.impl = _GetchWindows()
-        except ImportError:
-            self.impl = _GetchUnix()
-
-    def __call__(self): return self.impl()
-
-class _GetchUnix:
-    def __init__(self):
-        import tty, sys
-
-    def __call__(self):
-        import sys, tty, termios
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(sys.stdin.fileno())
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return ch.encode('utf-8')
-
-class _GetchWindows:
-    def __init__(self):
-        import msvcrt
-
-    def __call__(self):
-        import msvcrt
-        return msvcrt.getch()
 
 def md5(text):
     return hashlib.md5(text.encode()).hexdigest()
 
+def escapeLiteral(literal):
+    return literal.replace("\\\\", "\\").encode("utf-8").decode("unicode_escape")
+
 def rx():
-    global previousMsg
+    global die
     while True:
         try:
-            a = sock.recvall()
-            if die: break
+            if die: return
 
-            #no reason to use json, just felt like it
+            a = sock.recvall(timeout=0.1)
+
+            if a == None: continue
+
             try:
-                t = json.loads(a)
+                t = json.loads(a) #no reason to use json, just felt like it
 
                 # verify that the fields we need exist
-
                 assert t.get("user", False) != False
                 assert t.get("text", False) != False
                 assert t.get("crc", False) != False
@@ -71,54 +38,32 @@ def rx():
                 assert md5(t["text"]) == t["crc"] # verify that the checksum matches the text
             except:
                 continue
-            
-            # make sure that we haven't printed the same message before
-            if hash(t["text"]) == previousMsg:
-                continue
 
-            previousMsg = hash(t["text"])
-            print("\r\033[K", end="", flush=True)
-            print("\r{}: {}\033[0m\n\r> ".format(t["user"], t["text"]), end="", flush=True)
-            print(inBuf, end="", flush=True)
+            msgBuffer.pop(0)
+            msgBuffer.append("{}: {}".format(t["user"], t["text"]))
+
+            #   save cursor  move to 0,0       print new messages   restore cursor pos
+            print("\033[s" + "\033[1;1f" + "\n\033[K".join(msgBuffer) + "\033[u", end="", flush=1) # move to first line, first col
         except: # wrap the whole thing into a try catch statement to prevent random bricking (stupid but works)
             pass
 
-getch = _Getch()
-
 def tx():
-    global inBuf
     while True:
+        msg = "\033[0m" + escapeLiteral(args.prepend) + input(">") + "\033[0m"
 
-        inBuf = ""
-        while True:
-            char = getch()
-
-            if char == b"\r":
-                break
-            elif char == b'\x03':
-                raise KeyboardInterrupt()
-            elif char in [b'\b', b'\x08', b'\x7f']:
-                inBuf = inBuf[:-1]
-                print("\r\033[K", end="", flush=True)
-                print("\r> "+inBuf, end="", flush=True)
-            else:
-                try:
-                    inBuf += char.decode('ascii')
-                except:
-                    continue
-
-                print("\r> "+inBuf, end="", flush=True)
-
-        msg = "\033[0m" + (inBuf) + "\033[0m"
+        #      1 ln up      clear ln    CR
+        print("\033[1A\r" + "\033[K" + "\r", end="", flush=1)
 
         sock.sendall(json.dumps({"user": args.user, "text": msg, "crc": md5(msg)}))
 
-a = threading.Thread(target=rx)
-a.start()
+#    clear term  print line placeholders
+print("\033[2J" + "\n".join(msgBuffer), end="", flush=True) 
 
 try:
+    threading.Thread(target=rx).start()
     sock.sendall(json.dumps({"user": args.user, "text": "joined the chat", "crc": md5("joined the chat")}))
     tx()
 except:
     die = True
+    print("quitting")
     quit()

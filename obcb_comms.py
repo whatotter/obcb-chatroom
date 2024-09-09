@@ -1,5 +1,6 @@
-import time
-import obcb as obcb
+from time import sleep
+import obcb
+import hashlib
 
 def text2Bin(text:str):
     return ''.join(format(byte, '08b') for byte in text.encode('ascii'))
@@ -19,17 +20,25 @@ def bin2Byte(binary_string):
 def bin2Text(binary_string, encoding='utf-8'):
     return bin2Byte(binary_string).decode(encoding)
 
+def md5(text):
+    return hashlib.md5(text.encode()).hexdigest()
+
 ORIGINAL_PAGE = 198
 class socket():
     def __init__(self, page) -> None:
         self.page = page
         self.obcbSOCK = obcb.OBCB(page)
+        self.previousMsg = None
 
         self._subscribe()
         pass
 
-    def recvall(self, dbg=False):
+    def recvall(self, dbg=False, timeout=None):
+        timeoutTime = 0
         while True:
+            if timeoutTime >= timeout:
+                return None
+
             rdy = self.obcbSOCK.getIndexState(0)
 
             if rdy:
@@ -43,14 +52,22 @@ class socket():
                 data = self.obcbSOCK.getSliceState(18, 18+readsizeBITS, customPageState=bitScreenshot)
 
                 try:
-                    return bin2Text(data)
+                    md5Hash = md5(bin2Text(data))
+                    if md5Hash != self.previousMsg:
+                        self.previousMsg = md5(bin2Text(data))
+                        return bin2Text(data)
+                    else:
+                        sleep(0.01)
+                        timeoutTime += 0.01
+                        continue
                 except:
                     print("{!} couldn't decode \"{}\"".format(data))
                     raise
             else:
                 if dbg: print("not ready")
 
-            time.sleep(0.1)
+            sleep(0.01)
+            timeoutTime += 0.01
 
     def sendall(self, text):
         # consts
