@@ -81,7 +81,6 @@ def rx():
             print("\r{}: {}\033[0m\n\r> ".format(t["user"], t["text"]), end="", flush=True)
             print(inBuf, end="", flush=True)
         except: # wrap the whole thing into a try catch statement to prevent random bricking (stupid but works)
-            raise
             pass
 
 getch = _Getch()

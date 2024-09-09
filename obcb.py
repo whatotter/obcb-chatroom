@@ -19,9 +19,9 @@ def valueChecks(page, startIndex, endIndex):
     if page < 1 or page > 4096:
         raise ValueError("Page must be between 1 and 4096")
 
-def splitInto64(s):
-    # List comprehension to create substrings of length 64
-    return [s[i:i+64] for i in range(0, len(s), 64)]
+def splitInto32(s):
+    # List comprehension to create substrings of length 32
+    return [s[i:i+32] for i in range(0, len(s), 32)]
 
 class OBCB:
     def __init__(self, page, wsURL="wss://bitmap-ws.alula.me/"):
@@ -69,7 +69,7 @@ class OBCB:
         """
 
         pg = self.getPageState()
-        pgSplit = splitInto64(pg)
+        pgSplit = splitInto32(pg)
 
         for index,value in enumerate(pgSplit):
             self.partialStates[index] = value
@@ -90,7 +90,7 @@ class OBCB:
 
             if commandByte == 0x12:
                 byteOffset, data = self._parsePartialState_(read)
-                self.partialStates[int(byteOffset/64)] = data
+                self.partialStates[(byteOffset/32)] = data
 
     # LOCAL FUNCTION
     def waitForCommand(self, command, pollingRate=0.01) -> bytes:

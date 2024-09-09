@@ -47,7 +47,6 @@ class socket():
                 except:
                     print("{!} couldn't decode \"{}\"".format(data))
                     raise
-                    pass # couldn't decode
             else:
                 if dbg: print("not ready")
 
