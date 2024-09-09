@@ -1,8 +1,6 @@
 import time
 import obcb as obcb
 
-a = obcb.OBCB()
-
 def text2Bin(text:str):
     return ''.join(format(byte, '08b') for byte in text.encode('ascii'))
 
@@ -25,28 +23,30 @@ ORIGINAL_PAGE = 198
 class socket():
     def __init__(self, page) -> None:
         self.page = page
+        self.obcbSOCK = obcb.OBCB(page)
+
+        self._subscribe()
         pass
 
     def recvall(self, dbg=False):
         while True:
-            pg = a.getPageState(self.page)
-
-            if len(pg) != 32768:
-                continue # didn't get full page state, retry
-
-            rdy = a.getIndexState(self.page, 0, customPageState=pg)
+            rdy = self.obcbSOCK.getIndexState(0)
 
             if rdy:
-                readsize = a.getSliceState(self.page, 1, 16+1, customPageState=pg)
+                bitScreenshot = self.obcbSOCK.getPageState()
+
+                readsize = self.obcbSOCK.getSliceState(1, 16+1, customPageState=bitScreenshot)
 
                 readsizeINT = int(readsize, base=2)
                 readsizeBITS = readsizeINT*8
 
-                dataread = a.getSliceState(self.page, 18, 18+readsizeBITS, customPageState=pg)
+                data = self.obcbSOCK.getSliceState(18, 18+readsizeBITS, customPageState=bitScreenshot)
 
                 try:
-                    return bin2Text(dataread)
+                    return bin2Text(data)
                 except:
+                    print("{!} couldn't decode \"{}\"".format(data))
+                    raise
                     pass # couldn't decode
             else:
                 if dbg: print("not ready")
@@ -66,22 +66,31 @@ class socket():
         else:
             bintext = byte2Bin(text)
 
-        a.clear(self.page, 0, len(bintext)+64)
+        self.obcbSOCK.clear(0, len(bintext)+64)
 
         IndexPosition = 0
         for bit in sizeBinary:
-            if bit == '1': a.flip(self.page, readSizeSlice[0]+IndexPosition)
+            if bit == '1': self.obcbSOCK.flip(readSizeSlice[0]+IndexPosition)
 
             IndexPosition += 1
 
         IndexPosition = 0
         for bit in bintext:
-            if bit == '1': a.flip(self.page, dataIndex+IndexPosition)
+            if bit == '1': self.obcbSOCK.flip(dataIndex+IndexPosition)
 
             IndexPosition += 1
 
-        a.flip(self.page, readyIndex) # hopefully goes high
-        a.flip(self.page, dataIndex+IndexPosition) # hopefully goes high
+        self.obcbSOCK.flip(readyIndex) # hopefully goes high
+        self.obcbSOCK.flip(dataIndex+IndexPosition) # hopefully goes high
 
     def clear(self):
-        a.clear(self.page, 0, 16384)
+        self.obcbSOCK.clear(0, 32767)
+
+    def _subscribe(self):
+        self.obcbSOCK.subPartialState(self.page)
+
+    def _unsubscribe(self):
+        self.obcbSOCK.unsubPartialState()
+
+    def _rcv(self):
+        return self.obcbSOCK._recv()

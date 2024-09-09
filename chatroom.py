@@ -81,9 +81,11 @@ def rx():
             print("\r{}: {}\033[0m\n\r> ".format(t["user"], t["text"]), end="", flush=True)
             print(inBuf, end="", flush=True)
         except: # wrap the whole thing into a try catch statement to prevent random bricking (stupid but works)
+            raise
             pass
 
 getch = _Getch()
+
 def tx():
     global inBuf
     while True:
@@ -108,7 +110,7 @@ def tx():
 
                 print("\r> "+inBuf, end="", flush=True)
 
-        msg = "\033[0m" + inBuf + "\033[0m"
+        msg = "\033[0m" + (inBuf) + "\033[0m"
 
         sock.sendall(json.dumps({"user": args.user, "text": msg, "crc": md5(msg)}))
 
@@ -120,4 +122,4 @@ try:
     tx()
 except:
     die = True
-    raise
+    quit()
