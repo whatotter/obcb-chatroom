@@ -104,7 +104,7 @@ def tx():
                 inBuf += char.decode('utf-8')
                 print("\r> "+inBuf, end="", flush=True)
 
-        msg = "\033[0m" + "\033[1;40;32m" + inBuf + "\033[0m"
+        msg = "\033[0m" + inBuf + "\033[0m"
 
         sock.sendall(json.dumps({"user": args.user, "text": msg, "crc": md5(msg)}))
 
