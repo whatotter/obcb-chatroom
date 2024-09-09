@@ -96,7 +96,7 @@ def tx():
                 break
             elif char == b'\x03':
                 raise KeyboardInterrupt()
-            elif char == b'\b' or char == b'\x08':
+            elif char in [b'\b', b'\x08', b'\x7f']:
                 inBuf = inBuf[:-1]
                 print("\r\033[K", end="", flush=True)
                 print("\r> "+inBuf, end="", flush=True)
@@ -104,7 +104,7 @@ def tx():
                 inBuf += char.decode('utf-8')
                 print("\r> "+inBuf, end="", flush=True)
 
-        msg = "\033[0m" + inBuf
+        msg = "\033[0m" + "\033[1;40;32m" + inBuf + "\033[0m"
 
         sock.sendall(json.dumps({"user": args.user, "text": msg, "crc": md5(msg)}))
 
