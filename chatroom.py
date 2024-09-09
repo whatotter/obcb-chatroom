@@ -78,7 +78,7 @@ def rx():
 
             previousMsg = hash(t["text"])
             print("\r\033[K", end="", flush=True)
-            print("\r{}: {}\033[0m\n> ".format(t["user"], t["text"]), end="", flush=True)
+            print("\r{}: {}\033[0m\n\r> ".format(t["user"], t["text"]), end="", flush=True)
             print(inBuf, end="", flush=True)
         except: # wrap the whole thing into a try catch statement to prevent random bricking (stupid but works)
             pass
@@ -101,7 +101,11 @@ def tx():
                 print("\r\033[K", end="", flush=True)
                 print("\r> "+inBuf, end="", flush=True)
             else:
-                inBuf += char.decode('utf-8')
+                try:
+                    inBuf += char.decode('ascii')
+                except:
+                    continue
+
                 print("\r> "+inBuf, end="", flush=True)
 
         msg = "\033[0m" + inBuf + "\033[0m"
