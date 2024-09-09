@@ -1,5 +1,5 @@
 # obcb-chatroom
-chat like it's the 2000s again using our shitty bit-banging-galore chatroom!!
+chat like it's the 2000s again using our bit-banging-galore chatroom!!
 
 ![image](https://github.com/user-attachments/assets/adcff8d2-adea-4f81-a685-3bf8d6372e5e)
 
