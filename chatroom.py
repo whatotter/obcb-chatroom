@@ -12,6 +12,41 @@ args = parser.parse_args()
 sock = obcb_comms.socket(int(args.room))
 previousMsg = None
 die = False
+inBuf = ""
+
+# input fucking sucks, we're using getch
+class _Getch:
+    """Gets a single character from standard input.  Does not echo to the screen."""
+    def __init__(self):
+        try:
+            self.impl = _GetchWindows()
+        except ImportError:
+            self.impl = _GetchUnix()
+
+    def __call__(self): return self.impl()
+
+class _GetchUnix:
+    def __init__(self):
+        import tty, sys
+
+    def __call__(self):
+        import sys, tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+class _GetchWindows:
+    def __init__(self):
+        import msvcrt
+
+    def __call__(self):
+        import msvcrt
+        return msvcrt.getch()
 
 def md5(text):
     return hashlib.md5(text.encode()).hexdigest()
@@ -42,13 +77,34 @@ def rx():
                 continue
 
             previousMsg = hash(t["text"])
-            print("\r{}: {}\n>".format(t["user"], t["text"]), end="", flush=True)
+            print("\r\033[K", end="", flush=True)
+            print("\r{}: {}\033[0m\n> ".format(t["user"], t["text"]), end="", flush=True)
+            print(inBuf, end="", flush=True)
         except: # wrap the whole thing into a try catch statement to prevent random bricking (stupid but works)
             pass
 
+getch = _Getch()
 def tx():
+    global inBuf
     while True:
-        msg = input("\033[0m\n>") # + reset ansi to prevent annoying ansi codes
+
+        inBuf = ""
+        while True:
+            char = getch()
+
+            if char == b"\r":
+                break
+            elif char == b'\x03':
+                raise KeyboardInterrupt()
+            elif char == b'\b' or char == b'\x08':
+                inBuf = inBuf[:-1]
+                print("\r\033[K", end="", flush=True)
+                print("\r> "+inBuf, end="", flush=True)
+            else:
+                inBuf += char.decode('utf-8')
+                print("\r> "+inBuf, end="", flush=True)
+
+        msg = "\033[0m" + inBuf
 
         sock.sendall(json.dumps({"user": args.user, "text": msg, "crc": md5(msg)}))
 
@@ -56,8 +112,7 @@ a = threading.Thread(target=rx)
 a.start()
 
 try:
-    sock.sendall(json.dumps({"user": args.user, "text": "joined the chat", "crc": hash("joined the chat")}))
+    sock.sendall(json.dumps({"user": args.user, "text": "joined the chat", "crc": md5("joined the chat")}))
     tx()
-except KeyboardInterrupt:
-    print("^C")
+except:
     die = True

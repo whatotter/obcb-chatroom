@@ -1,5 +1,5 @@
 import time
-import obcb
+import obcb as obcb
 
 a = obcb.OBCB()
 
@@ -34,26 +34,24 @@ class socket():
             if len(pg) != 32768:
                 continue # didn't get full page state, retry
 
-            break
+            rdy = a.getIndexState(self.page, 0, customPageState=pg)
 
-        rdy = a.getIndexState(self.page, 0, customPageState=pg)
+            if rdy:
+                readsize = a.getSliceState(self.page, 1, 16+1, customPageState=pg)
 
-        if rdy:
-            readsize = a.getSliceState(self.page, 1, 16+1, customPageState=pg)
+                readsizeINT = int(readsize, base=2)
+                readsizeBITS = readsizeINT*8
 
-            readsizeINT = int(readsize, base=2)
-            readsizeBITS = readsizeINT*8
+                dataread = a.getSliceState(self.page, 18, 18+readsizeBITS, customPageState=pg)
 
-            dataread = a.getSliceState(self.page, 18, 18+readsizeBITS, customPageState=pg)
+                try:
+                    return bin2Text(dataread)
+                except:
+                    pass # couldn't decode
+            else:
+                if dbg: print("not ready")
 
-            try:
-                return bin2Text(dataread)
-            except:
-                pass # couldn't decode
-        else:
-            if dbg: print("not ready")
-
-        time.sleep(0.1)
+            time.sleep(0.1)
 
     def sendall(self, text):
         # consts
@@ -84,3 +82,6 @@ class socket():
 
         a.flip(self.page, readyIndex) # hopefully goes high
         a.flip(self.page, dataIndex+IndexPosition) # hopefully goes high
+
+    def clear(self):
+        a.clear(self.page, 0, 16384)
